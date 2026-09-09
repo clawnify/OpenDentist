@@ -50,7 +50,7 @@ pnpm typecheck
 pnpm build
 ```
 
-The dev script applies `src/server/schema.sql` to the local D1 database, then runs Vite and Wrangler in parallel. The schema seeds 3 operatories, 3 practitioners, and 6 treatment types so the agenda is usable on first boot.
+The dev script applies `src/server/schema.sql` to the local D1 database, then runs Vite and Wrangler in parallel. On its first request the app seeds 3 operatories, 3 practitioners, and 6 treatment types so the agenda is usable on first boot.
 
 ## Deploy
 
@@ -69,7 +69,8 @@ src/
   server/
     index.ts        Hono routes for every entity
     db.ts           D1 adapter (query / get / run)
-    schema.sql      Tables + seed data
+    schema.sql      Tables and indexes (DDL only)
+    seed.ts         First-run defaults + sample rows
   client/
     app.tsx         Shell + routing
     components/

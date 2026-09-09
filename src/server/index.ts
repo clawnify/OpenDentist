@@ -2,6 +2,12 @@ import { type Context } from "hono";
 import { z } from "zod";
 import { createApp } from "@clawnify/app";
 import { query, get, run } from "./db";
+import {
+  DEFAULT_SETTINGS,
+  SEED_OPERATORIES,
+  SEED_PRACTITIONERS,
+  SEED_TREATMENT_TYPES,
+} from "./seed";
 
 type Env = { Bindings: { DB: D1Database } };
 
@@ -9,6 +15,73 @@ const app = createApp<Env>({
   title: "OpenDentist",
   version: "1.0.0",
   description: "Dental practice management: patients, appointments, operatories, treatments, and billing.",
+});
+
+// ── First-run seed ─────────────────────────────────────────────────
+// `schema.sql` is applied as DDL only by the Clawnify deploy pipeline, so the
+// practice defaults and the sample rows are inserted here, on the first request
+// that reaches the app, instead of from the schema file.
+
+type SeedTable = "operatories" | "practitioners" | "treatment_types";
+
+let seeded = false;
+let seeding: Promise<void> | null = null;
+
+async function isEmpty(table: SeedTable): Promise<boolean> {
+  const row = await get<{ n: number }>(`SELECT COUNT(*) AS n FROM ${table}`);
+  return (row?.n ?? 0) === 0;
+}
+
+async function seedOnce(): Promise<void> {
+  for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
+    await run("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", [key, value]);
+  }
+
+  // Sample rows land only while the table is still empty, so a redeploy never
+  // resurrects an operatory, practitioner or treatment type the user deleted.
+  if (await isEmpty("operatories")) {
+    for (const o of SEED_OPERATORIES) {
+      await run("INSERT INTO operatories (name, color, sort_order) VALUES (?, ?, ?)", [o.name, o.color, o.sort_order]);
+    }
+  }
+
+  if (await isEmpty("practitioners")) {
+    for (const p of SEED_PRACTITIONERS) {
+      await run("INSERT INTO practitioners (name, role, color) VALUES (?, ?, ?)", [p.name, p.role, p.color]);
+    }
+  }
+
+  if (await isEmpty("treatment_types")) {
+    for (const t of SEED_TREATMENT_TYPES) {
+      await run(
+        "INSERT INTO treatment_types (code, name, duration_minutes, default_fee, color) VALUES (?, ?, ?, ?, ?)",
+        [t.code, t.name, t.duration_minutes, t.default_fee, t.color],
+      );
+    }
+  }
+}
+
+async function ensureSeeded(): Promise<void> {
+  if (seeded) return;
+  try {
+    // Concurrent first requests share one run — the app shell fires four API
+    // calls in parallel on load, and without this each would read COUNT(*) = 0
+    // and insert its own copy of the sample rows.
+    // shortcut: the shared promise is per-isolate; if duplicates ever show up on
+    // a cold app, claim the seed atomically with an `INSERT OR IGNORE` marker row.
+    seeding ??= seedOnce();
+    await seeding;
+    seeded = true;
+  } catch {
+    // Sample data must never fail a request.
+    seeded = false;
+    seeding = null;
+  }
+}
+
+app.use("*", async (_c, next) => {
+  await ensureSeeded();
+  await next();
 });
 
 // ── Helpers ────────────────────────────────────────────────────────
@@ -972,7 +1045,7 @@ app.get("/api/settings", async (c) => {
   const rows = await query<{ key: string; value: string }>(
     "SELECT key, value FROM settings",
   ).catch(() => []);
-  const out: Record<string, string> = {};
+  const out: Record<string, string> = { ...DEFAULT_SETTINGS };
   for (const r of rows) out[r.key] = r.value;
   return c.json({ settings: out });
 });
@@ -991,7 +1064,7 @@ app.put("/api/settings", async (c) => {
     );
   }
   const rows = await query<{ key: string; value: string }>("SELECT key, value FROM settings");
-  const out: Record<string, string> = {};
+  const out: Record<string, string> = { ...DEFAULT_SETTINGS };
   for (const r of rows) out[r.key] = r.value;
   return c.json({ settings: out });
 });
