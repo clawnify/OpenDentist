@@ -5,10 +5,9 @@ CREATE TABLE IF NOT EXISTS settings (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- Defaults: day starts 07:00, ends 19:00. Stored as minutes from midnight.
-INSERT OR IGNORE INTO settings (key, value) VALUES ('day_start_minute', '420');
-INSERT OR IGNORE INTO settings (key, value) VALUES ('day_end_minute', '1140');
-INSERT OR IGNORE INTO settings (key, value) VALUES ('slot_minutes', '15');
+-- Defaults (day_start_minute 420, day_end_minute 1140, slot_minutes 15) are
+-- inserted by the app on first run — see `ensureSeeded` in src/server/index.ts.
+-- This file is applied as DDL only, so it must contain no INSERT statements.
 
 -- ── Operatories (treatment rooms / chairs) ──────────────────────
 CREATE TABLE IF NOT EXISTS operatories (
@@ -213,51 +212,8 @@ CREATE TABLE IF NOT EXISTS appointments_to_make (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- ── Seed data (only inserted on first run) ─────────────────────
-INSERT INTO operatories (name, color, sort_order)
-SELECT 'Op 1', 'sky', 0
-WHERE NOT EXISTS (SELECT 1 FROM operatories);
-
-INSERT INTO operatories (name, color, sort_order)
-SELECT 'Op 2', 'emerald', 1
-WHERE (SELECT COUNT(*) FROM operatories) = 1;
-
-INSERT INTO operatories (name, color, sort_order)
-SELECT 'Op 3', 'amber', 2
-WHERE (SELECT COUNT(*) FROM operatories) = 2;
-
-INSERT INTO practitioners (name, role, color)
-SELECT 'Dr. Lee', 'dentist', 'teal'
-WHERE NOT EXISTS (SELECT 1 FROM practitioners);
-
-INSERT INTO practitioners (name, role, color)
-SELECT 'Dr. Patel', 'dentist', 'violet'
-WHERE (SELECT COUNT(*) FROM practitioners) = 1;
-
-INSERT INTO practitioners (name, role, color)
-SELECT 'Sarah Kim', 'hygienist', 'rose'
-WHERE (SELECT COUNT(*) FROM practitioners) = 2;
-
-INSERT INTO treatment_types (code, name, duration_minutes, default_fee, color)
-SELECT 'EXAM', 'Exam & Cleaning', 30, 120, 'sky'
-WHERE NOT EXISTS (SELECT 1 FROM treatment_types);
-
-INSERT INTO treatment_types (code, name, duration_minutes, default_fee, color)
-SELECT 'FILL', 'Restoration / Filling', 45, 220, 'amber'
-WHERE (SELECT COUNT(*) FROM treatment_types) = 1;
-
-INSERT INTO treatment_types (code, name, duration_minutes, default_fee, color)
-SELECT 'CROWN', 'Crown', 90, 1100, 'violet'
-WHERE (SELECT COUNT(*) FROM treatment_types) = 2;
-
-INSERT INTO treatment_types (code, name, duration_minutes, default_fee, color)
-SELECT 'ENDO', 'Root Canal', 90, 950, 'rose'
-WHERE (SELECT COUNT(*) FROM treatment_types) = 3;
-
-INSERT INTO treatment_types (code, name, duration_minutes, default_fee, color)
-SELECT 'EXT', 'Extraction', 30, 250, 'orange'
-WHERE (SELECT COUNT(*) FROM treatment_types) = 4;
-
-INSERT INTO treatment_types (code, name, duration_minutes, default_fee, color)
-SELECT 'CONS', 'Consultation', 20, 80, 'emerald'
-WHERE (SELECT COUNT(*) FROM treatment_types) = 5;
+-- ── Seed data ──────────────────────────────────────────────────
+-- The sample operatories, practitioners and treatment types moved into the app
+-- (src/server/seed.ts, applied by `ensureSeeded` in src/server/index.ts).
+-- A Clawnify deploy applies this file as DDL only: a single INSERT here fails
+-- the entire deploy, so no non-DDL statement may be added back.
