@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { reportLocation } from "@clawnify/app/client";
 import { useAppState } from "./hooks/use-app-state";
 import { useRouter } from "./hooks/use-router";
 import { AppContext } from "./context";
@@ -12,7 +14,8 @@ import { SettingsPage } from "./components/settings/settings-page";
 
 export function App() {
   const state = useAppState();
-  const { route, navigate } = useRouter();
+  const { path, route, navigate } = useRouter();
+  useEffect(() => { reportLocation(window.location.pathname + window.location.search); }, [path]);
 
   return (
     <AppContext.Provider value={state}>
