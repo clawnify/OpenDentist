@@ -1,3 +1,4 @@
+import { AppNav, embedded } from "@clawnify/app/client";
 import {
   Calendar,
   Users,
@@ -42,6 +43,16 @@ export function Sidebar({
   route: Route;
   navigate: (to: string) => void;
 }) {
+  if (embedded) {
+    const icons: Record<string, string> = { "/agenda": "calendar-days", "/patients": "users", "/lab": "package", "/reports": "bar-chart-3", "/settings": "settings" };
+    const active = sections.flatMap(section => section.items).find(item => item.match?.(route))?.path;
+    return <AppNav title="Dentist" icon="calendar-days" active={active}
+      groups={sections.map(section => ({ label: section.heading, items: section.items.filter(item => item.path && !item.disabled).map(item => ({
+        id: item.path!, label: item.label, href: item.path!, icon: icons[item.path!],
+      })) }))}
+      onNavigate={item => navigate(item.href ?? "/agenda")} />;
+  }
+
   return (
     <aside className="hidden w-60 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground md:flex">
       <div className="flex h-14 items-center gap-2 border-b px-4">
