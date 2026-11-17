@@ -1,4 +1,5 @@
-import { AppNav, embedded } from "@clawnify/app/client";
+import type { ReactNode } from "react";
+import { AppNav } from "@clawnify/app/client";
 import {
   Calendar,
   Users,
@@ -43,16 +44,27 @@ export function Sidebar({
   route: Route;
   navigate: (to: string) => void;
 }) {
-  if (embedded) {
-    const icons: Record<string, string> = { "/agenda": "calendar-days", "/patients": "users", "/lab": "package", "/reports": "bar-chart-3", "/settings": "settings" };
-    const active = sections.flatMap(section => section.items).find(item => item.match?.(route))?.path;
-    return <AppNav title="Dentist" icon="calendar-days" active={active}
-      groups={sections.map(section => ({ label: section.heading, items: section.items.filter(item => item.path && !item.disabled).map(item => ({
-        id: item.path!, label: item.label, href: item.path!, icon: icons[item.path!],
-      })) }))}
-      onNavigate={item => navigate(item.href ?? "/agenda")} />;
-  }
+  // One <AppNav>: inside Clawnify the dashboard draws this navigation, and
+  // anywhere else the practice's own sidebar below is drawn from it.
+  const icons: Record<string, string> = { "/agenda": "calendar-days", "/patients": "users", "/lab": "package", "/reports": "bar-chart-3", "/settings": "settings" };
+  const active = sections.flatMap(section => section.items).find(item => item.match?.(route))?.path;
+  return <AppNav title="Dentist" icon="calendar-days" active={active}
+    groups={sections.map(section => ({ label: section.heading, items: section.items.filter(item => item.path && !item.disabled).map(item => ({
+      id: item.path!, label: item.label, href: item.path!, icon: icons[item.path!],
+    })) }))}
+    onNavigate={item => navigate(item.href ?? "/agenda")}
+    standalone={(nav) => <OwnSidebar route={route} navigate={navigate} card={nav.card} />} />;
+}
 
+function OwnSidebar({
+  route,
+  navigate,
+  card,
+}: {
+  route: Route;
+  navigate: (to: string) => void;
+  card?: ReactNode;
+}) {
   return (
     <aside className="hidden w-60 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground md:flex">
       <div className="flex h-14 items-center gap-2 border-b px-4">
@@ -100,6 +112,7 @@ export function Sidebar({
           </div>
         ))}
       </nav>
+      {card && <div className="px-2 pb-2">{card}</div>}
     </aside>
   );
 }
